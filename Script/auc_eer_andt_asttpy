@@ -1,0 +1,44 @@
+import glob
+import numpy as np
+import os
+from sklearn.metrics import roc_auc_score
+import tqdm
+import argparse
+import numpy as np
+from sklearn.metrics import roc_curve
+
+def evaluate_results(path_labels, path_results):
+  list_np_labels = []
+  losses = []
+  for path_scene in tqdm.tqdm(sorted(glob.glob(path_results + '/*'))):
+    vid_idx+=1
+
+    np_label = np.load(os.path.join(path_labels, path_scene.split('/')[-1]), allow_pickle=True)
+    losses_curr_video = np.load(path_scene, allow_pickle=True)
+  
+    losses.append(losses_curr_video)
+    list_np_labels.append(np_label[len(np_label) - len(losses_curr_video):])
+
+  list_np_labels = np.concatenate(list_np_labels)
+  scores = np.concatenate(losses)
+
+  index_of_first_zero = np.where(list_np_labels == 0)[0]
+  frame_auc = roc_auc_score(y_true=list_np_labels, y_score=scores)
+  print('\nAUC', frame_auc)
+
+  fpr, tpr, threshold = roc_curve(list_np_labels, scores, pos_label=1)
+  fnr = 1 - tpr
+
+  EER = fpr[np.nanargmin(np.absolute((fnr - fpr)))]
+  print('\nEER', EER)
+
+  return fpr, tpr, list_np_labels, scores
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Evaluate results using ROC AUC and EER.')
+    parser.add_argument('--path_labels', type=str, help='Path to the labels directory')
+    parser.add_argument('--path_results', type=str, help='Path to the results directory')
+
+    args = parser.parse_args()
+
+    evaluate_results(args.path_labels, args.path_results)
